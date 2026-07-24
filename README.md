@@ -7,9 +7,9 @@
 <p align="center"><strong>Decision provenance and shared operational memory for robot fleets.</strong></p>
 
 <p align="center">
-  <a href="LICENSE"><img src="https://img.shields.io/badge/License-Apache--2.0-14B8A6.svg" alt="License"/></a>
-  <a href="https://www.python.org/"><img src="https://img.shields.io/badge/Python-3.12%2B-0B6E66?logo=python&logoColor=white" alt="Python"/></a>
-  <img src="https://img.shields.io/badge/typing-mypy--strict-0F9C8E" alt="mypy strict"/>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-Apache--2.0-blue.svg" alt="License"/></a>
+  <a href="https://www.python.org/"><img src="https://img.shields.io/badge/Python-3.12%2B-3776AB?logo=python&logoColor=white" alt="Python"/></a>
+  <img src="https://img.shields.io/badge/typing-mypy--strict-7C3AED" alt="mypy strict"/>
   <img src="https://img.shields.io/badge/scope-observation--only-EBA53C" alt="observation-only"/>
 </p>
 
