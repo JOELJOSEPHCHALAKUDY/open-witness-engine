@@ -11,11 +11,11 @@ already-deserialized record into a ``DecisionObservation`` and is pure.
 
 from __future__ import annotations
 
-from datetime import datetime
 from typing import Any
 
 from ..envelope import CandidateAction, Outcome, OutcomeStatus, Software
 from .capture import DecisionObservation
+from .errors import parse_timestamp, require
 
 _SOURCE = "nav2-bridge"
 
@@ -39,9 +39,13 @@ def _result_status(raw: str | None) -> OutcomeStatus:
 
 
 def nav2_bt_to_observation(record: dict[str, Any]) -> DecisionObservation:
-    """Map a Nav2 behavior-tree transition into a normalized decision observation."""
-    robot = str(record["robot"])
-    nav_goal_id = str(record["nav_goal_id"])
+    """Map a Nav2 behavior-tree transition into a normalized decision observation.
+
+    Raises ``MalformedRecordError`` (with context) on a missing required field or
+    an unparseable timestamp.
+    """
+    robot = str(require(record, "robot", source=_SOURCE))
+    nav_goal_id = str(require(record, "nav_goal_id", source=_SOURCE))
     rejected: dict[str, str] = dict(record.get("rejected", {}))
     candidates = [
         CandidateAction(
@@ -61,11 +65,11 @@ def nav2_bt_to_observation(record: dict[str, Any]) -> DecisionObservation:
         event_id=f"nav2:{robot}:{nav_goal_id}",
         robot_id=robot,
         action_goal_id=nav_goal_id,
-        wall_time=datetime.fromisoformat(record["wall_time"]),
-        monotonic_ns=int(record["monotonic_ns"]),
-        goal=str(record["goal"]),
+        wall_time=parse_timestamp(record, "wall_time", source=_SOURCE),
+        monotonic_ns=int(require(record, "monotonic_ns", source=_SOURCE)),
+        goal=str(require(record, "goal", source=_SOURCE)),
         candidate_actions=candidates,
-        selected_action=str(record["chosen"]),
+        selected_action=str(require(record, "chosen", source=_SOURCE)),
         decision_reason=record.get("reason"),
         software=software,
         outcome=Outcome(

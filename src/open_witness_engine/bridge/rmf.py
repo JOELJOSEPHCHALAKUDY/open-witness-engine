@@ -12,11 +12,11 @@ This module maps an already-deserialized record (a plain dict) into a
 
 from __future__ import annotations
 
-from datetime import datetime
 from typing import Any
 
 from ..envelope import CandidateAction, Outcome, OutcomeStatus
 from .capture import DecisionObservation
+from .errors import parse_timestamp, require
 
 _SOURCE = "rmf-bridge"
 
@@ -40,8 +40,14 @@ def _outcome_status(raw: str | None) -> OutcomeStatus:
 
 
 def rmf_task_award_to_observation(record: dict[str, Any]) -> DecisionObservation:
-    """Map an RMF task-award record into a normalized decision observation."""
-    task_id = str(record["task_id"])
+    """Map an RMF task-award record into a normalized decision observation.
+
+    Raises ``MalformedRecordError`` (with context) on a missing required field
+    or an unparseable timestamp, so the caller can reject-and-count rather than
+    crash the drain loop.
+    """
+    task_id = str(require(record, "task_id", source=_SOURCE))
+    awarded = str(require(record, "awarded_robot", source=_SOURCE))
     candidates = [
         CandidateAction(
             action=str(bid["robot"]),
@@ -53,14 +59,14 @@ def rmf_task_award_to_observation(record: dict[str, Any]) -> DecisionObservation
     return DecisionObservation(
         source=_SOURCE,
         event_id=f"rmf:{task_id}:award",
-        robot_id=str(record["awarded_robot"]),
+        robot_id=awarded,
         fleet_id=record.get("fleet"),
         task_id=task_id,
-        wall_time=datetime.fromisoformat(record["wall_time"]),
-        monotonic_ns=int(record["monotonic_ns"]),
-        goal=str(record["goal"]),
+        wall_time=parse_timestamp(record, "wall_time", source=_SOURCE),
+        monotonic_ns=int(require(record, "monotonic_ns", source=_SOURCE)),
+        goal=str(require(record, "goal", source=_SOURCE)),
         candidate_actions=candidates,
-        selected_action=str(record["awarded_robot"]),
+        selected_action=awarded,
         decision_reason=record.get("reason"),
         outcome=Outcome(status=_outcome_status(record.get("status"))),
     )

@@ -65,19 +65,24 @@ src/open_witness_engine/
   ordering.py       # source_seq / vector clock / idempotency primitives
   query.py          # why-did-X, version-diff, similar-operator-action queries
   bridge/
+    pipeline.py     # Bridge facade: resilient capture() + drain()
     spool.py        # non-blocking, bounded, fail-open transport
     capture.py      # normalized DecisionObservation + envelope translation
+    errors.py       # MalformedRecordError + safe field extraction
     rmf.py          # Open-RMF task-award -> DecisionObservation mapping
     nav2.py         # Nav2 behavior-tree -> DecisionObservation mapping
 schemas/
   robot-decision-envelope.v1.json
 ```
 
-The producer path is fail-open by construction: a ROS callback calls
-`spool.offer(...)`, which never blocks or raises; the bridge drains the spool,
-assigns a per-source sequence, translates to a validated envelope, and appends to
-the store. Data loss under sustained overload is bounded and counted (`spool.dropped`),
-never back-pressured onto the robot.
+The producer path is fail-open by construction. A ROS callback calls
+`bridge.capture(adapter, record)`, which never blocks or raises: a malformed
+record is counted and dropped, a healthy one is offered to the bounded spool. A
+consumer calls `bridge.drain()` to translate spooled observations into validated
+envelopes and append them, absorbing any per-record failure so one bad message
+can never stall capture. Both loss modes are bounded and observable — malformed
+records via `bridge.rejected`, overflow via `bridge.dropped` — and never
+back-pressured onto the robot.
 
 ## Relationship to Open Timeline Engine
 
