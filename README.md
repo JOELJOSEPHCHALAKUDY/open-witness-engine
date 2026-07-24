@@ -1,6 +1,17 @@
-# Open Witness Engine
+<p align="center">
+  <img src="docs/assets/logo.svg" alt="Open Witness Engine" width="180" />
+</p>
 
-**Decision provenance and shared operational memory for robot fleets.**
+<h1 align="center">Open Witness Engine</h1>
+
+<p align="center"><strong>Decision provenance and shared operational memory for robot fleets.</strong></p>
+
+<p align="center">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-Apache--2.0-14B8A6.svg" alt="License"/></a>
+  <a href="https://www.python.org/"><img src="https://img.shields.io/badge/Python-3.12%2B-0B6E66?logo=python&logoColor=white" alt="Python"/></a>
+  <img src="https://img.shields.io/badge/typing-mypy--strict-0F9C8E" alt="mypy strict"/>
+  <img src="https://img.shields.io/badge/scope-observation--only-EBA53C" alt="observation-only"/>
+</p>
 
 Open Witness Engine (OWE) records what a robot *believed*, *why* it chose an action
 over the alternatives, *what happened*, and *how a human corrected it* — then makes

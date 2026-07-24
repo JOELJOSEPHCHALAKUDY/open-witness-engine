@@ -1,0 +1,65 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none" role="img" aria-label="Open Witness Engine">
+  <title>Open Witness Engine</title>
+  <defs>
+    <!-- Sibling of Open Timeline Engine: same dark tile + eye + rings language,
+         shifted from violet (two eyes / dual-AI) to teal (one witnessing eye),
+         with the iris interior as a causal decision graph. -->
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#06110F"/>
+      <stop offset="100%" stop-color="#0A1C1A"/>
+    </linearGradient>
+    <radialGradient id="iris" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#063A35"/>
+      <stop offset="45%" stop-color="#0B6E66"/>
+      <stop offset="78%" stop-color="#0F9C8E"/>
+      <stop offset="100%" stop-color="#14B8A6"/>
+    </radialGradient>
+    <radialGradient id="sclera" cx="50%" cy="48%" r="55%">
+      <stop offset="0%" stop-color="#EAFBF8"/>
+      <stop offset="70%" stop-color="#CFF2EC"/>
+      <stop offset="100%" stop-color="#A9E4DA"/>
+    </radialGradient>
+    <radialGradient id="amb" cx="50%" cy="44%" r="52%">
+      <stop offset="0%" stop-color="#14B8A6" stop-opacity="0.20"/>
+      <stop offset="60%" stop-color="#0B6E66" stop-opacity="0.06"/>
+      <stop offset="100%" stop-color="#0B6E66" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="node" cx="50%" cy="38%" r="62%">
+      <stop offset="0%" stop-color="#8FF5E7"/>
+      <stop offset="100%" stop-color="#17A79B"/>
+    </radialGradient>
+    <filter id="glow"><feGaussianBlur stdDeviation="3" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  </defs>
+
+  <!-- Tile -->
+  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
+  <ellipse cx="256" cy="242" rx="222" ry="150" fill="url(#amb)"/>
+
+  <!-- Witnessing eye -->
+  <!-- sclera -->
+  <path d="M96 248 Q256 120 416 248 Q256 376 96 248 Z" fill="url(#sclera)" stroke="#8FDCD1" stroke-width="1.5" opacity="0.95"/>
+  <!-- iris -->
+  <circle cx="256" cy="248" r="96" fill="url(#iris)"/>
+  <circle cx="256" cy="248" r="96" fill="none" stroke="#0B6E66" stroke-width="2"/>
+  <!-- concentric rings (echo of OTE's timeline rings) -->
+  <circle cx="256" cy="248" r="78" fill="none" stroke="#5EEAD4" stroke-width="1.6" opacity="0.30"/>
+  <circle cx="256" cy="248" r="54" fill="none" stroke="#5EEAD4" stroke-width="1.6" opacity="0.22"/>
+
+  <!-- causal decision graph: causes -> decision -> outcome -->
+  <g stroke-linecap="round" stroke-width="6">
+    <line x1="190" y1="214" x2="256" y2="248" stroke="#2DD4BF" opacity="0.85"/>
+    <line x1="190" y1="282" x2="256" y2="248" stroke="#2DD4BF" opacity="0.85"/>
+    <line x1="256" y1="248" x2="326" y2="248" stroke="#F4B24A" opacity="0.9"/>
+  </g>
+  <circle cx="190" cy="214" r="12" fill="#5EEAD4"/>
+  <circle cx="190" cy="282" r="12" fill="#5EEAD4"/>
+  <circle cx="326" cy="248" r="12" fill="#F4B24A"/>
+
+  <!-- decision node (pupil) -->
+  <circle cx="256" cy="248" r="27" fill="#04211F"/>
+  <circle cx="256" cy="248" r="22" fill="url(#node)" filter="url(#glow)"/>
+  <circle cx="248" cy="240" r="5" fill="#FFFFFF" opacity="0.5"/>
+
+  <!-- outer iris glow -->
+  <circle cx="256" cy="248" r="102" fill="none" stroke="#14B8A6" stroke-width="2" opacity="0.12" filter="url(#glow)"/>
+</svg>
