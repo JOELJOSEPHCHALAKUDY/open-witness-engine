@@ -51,21 +51,33 @@ Causal edges: `caused_by`, `chosen_over`, `constrained_by`, `executed_as`,
 
 ## Status
 
-**v0 — tested domain core.** The off-robot decision model, causal graph, append-only
-provenance store, and query surface, built test-first. No ROS integration yet — that
-is the next milestone (a non-blocking `owe_ros_bridge` against Open-RMF / Nav2 in
-simulation, observation-only).
+**v0 — tested domain core + bridge foundation.** The off-robot decision model,
+causal graph, provenance store, query surface, and the non-blocking capture bridge
+(with Open-RMF / Nav2 adapter mappings), all built test-first. The ROS-specific I/O
+is left as documented seams — the transport, translation, and mapping logic are pure
+and tested without a running ROS stack.
 
 ```
 src/open_witness_engine/
-  envelope.py   # RobotDecisionEnvelope v1 and its sub-models
-  causal.py     # typed causal edges + decision graph traversal
-  store.py      # append-only, idempotent, ordered provenance store
-  ordering.py   # source_seq / vector clock / idempotency primitives
-  query.py      # why-did-X, version-diff, similar-operator-action queries
+  envelope.py       # RobotDecisionEnvelope v1 and its sub-models
+  causal.py         # typed causal edges + decision graph traversal
+  store.py          # append-only, idempotent, ordered provenance store
+  ordering.py       # source_seq / vector clock / idempotency primitives
+  query.py          # why-did-X, version-diff, similar-operator-action queries
+  bridge/
+    spool.py        # non-blocking, bounded, fail-open transport
+    capture.py      # normalized DecisionObservation + envelope translation
+    rmf.py          # Open-RMF task-award -> DecisionObservation mapping
+    nav2.py         # Nav2 behavior-tree -> DecisionObservation mapping
 schemas/
   robot-decision-envelope.v1.json
 ```
+
+The producer path is fail-open by construction: a ROS callback calls
+`spool.offer(...)`, which never blocks or raises; the bridge drains the spool,
+assigns a per-source sequence, translates to a validated envelope, and appends to
+the store. Data loss under sustained overload is bounded and counted (`spool.dropped`),
+never back-pressured onto the robot.
 
 ## Relationship to Open Timeline Engine
 
@@ -77,9 +89,11 @@ quality bars differ, and OWE must stand on its own.
 
 ## Roadmap
 
-1. **v0 (this):** tested domain core — envelope, causal graph, store, queries.
-2. **v0.1:** `owe_ros_bridge` — non-blocking, bounded-queue capture from Open-RMF task
-   lifecycle and Nav2 behavior-tree transitions, in simulation. Observation-only.
+1. **v0 (done):** tested domain core — envelope, causal graph, store, queries — plus
+   the non-blocking bridge foundation (spool, capture/translation, Open-RMF and Nav2
+   adapter mappings) with the ROS I/O left as documented seams.
+2. **v0.1:** wire the adapter seams to live ROS 2 (`rmf_task_msgs`, Nav2 BT log) and
+   run the bridge against Open-RMF / Nav2 in simulation, observation-only.
 3. **v0.2:** persistent store (Postgres) + semantic retrieval over decision records;
    references and hashes to `rosbag2` / trace snapshots.
 4. **Later (only if a real customer wedge is validated):** fleet aggregation,
