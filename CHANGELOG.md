@@ -32,6 +32,11 @@ ROS 2 seam. Still observation-only, advisory, off the control loop.
 - **CI** (`.github/workflows/ci.yml`): ruff + mypy `--strict` + pytest on every push/PR.
 - **`examples/warehouse_demo.py`**: a runnable, no-ROS minimal working example that
   drives the full capture → persist → query path.
+- **Validated on real ROS 2 (Jazzy)**: `examples/ros2_integration.py` +
+  `docker/ros-test.Dockerfile` run OWE's capture path through a live `rclpy` executor
+  over real DDS — two tasks published, both captured and correctly explained. See
+  [docs/ros2-testing.md](docs/ros2-testing.md). (Uses `std_msgs/String` as a stand-in
+  for `rmf_task_msgs/TaskSummary`; full Open-RMF/Gazebo sim still pending.)
 
 Validation: 99 tests passing; `ruff check .` clean; `mypy --strict` clean (32 files).
 

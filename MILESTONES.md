@@ -14,9 +14,12 @@ records (fail-open). See [CHANGELOG.md](CHANGELOG.md).
 - ✅ Live ROS 2 node (`bridge/ros_node.py`) subscribing to Open-RMF task topics and
   feeding the bridge fail-open, behind a guarded `rclpy` import; extraction is tested
   without ROS.
-- ⏳ Remaining: confirm the message-field mapping against a live distro and run against
-  Open-RMF / Nav2 in a real simulator (needs a ROS 2 environment); wire the Nav2
-  behavior-tree topic the same way as RMF.
+- ✅ **Validated on ROS 2 Jazzy**: real `rclpy` + real DDS pub/sub through OWE's actual
+  capture path → store → query, in a container (`examples/ros2_integration.py`,
+  [docs/ros2-testing.md](docs/ros2-testing.md)).
+- ⏳ Remaining: confirm the field mapping against real `rmf_task_msgs`/Nav2 message
+  definitions (the check uses `std_msgs/String` as a stand-in), wire the Nav2
+  behavior-tree topic, and run against a full Open-RMF / Nav2 simulator (Gazebo).
 
 ## v0.2 — Persistence + retrieval (in progress)
 
