@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+- **Fail-open hardening (found by a 5,000-sample stress eval):** `Bridge.capture`
+  and `drain` now absorb the full set of malformed-record failures — not just
+  `MalformedRecordError` but also `ValidationError`, `ValueError`, `TypeError`, and
+  `DuplicateDecisionError`. A malformed numeric field (`monotonic_ns="abc"` →
+  `ValueError` from `int()`, or a negative value → Pydantic `ValidationError`) used
+  to escape capture and would have crashed a ROS callback; it is now rejected and
+  counted. Regression tests in `tests/test_fail_open_numeric.py`.
+
 ## 0.1.0
 
 v0.1 + partial v0.2: the pipeline now runs end-to-end (persistently) and has a live

@@ -16,12 +16,25 @@ from typing import Any
 
 from pydantic import ValidationError
 
-from ..store import InMemoryProvenanceStore
+from ..store import DuplicateDecisionError, InMemoryProvenanceStore
 from .capture import DecisionObservation
 from .errors import MalformedRecordError
 from .spool import BoundedSpool
 
 Adapter = Callable[[dict[str, Any]], DecisionObservation]
+
+# Every way a record can be "bad" — a missing/garbage field (MalformedRecordError),
+# a value the model rejects (ValidationError), a failed numeric/type coercion
+# (ValueError/TypeError), or a key collision at write time (DuplicateDecisionError).
+# The fail-open contract absorbs all of them: a bad record is dropped and counted,
+# never allowed to raise out of capture/drain and stall the robot.
+_REJECTABLE = (
+    MalformedRecordError,
+    ValidationError,
+    ValueError,
+    TypeError,
+    DuplicateDecisionError,
+)
 
 
 @dataclass(frozen=True)
@@ -56,7 +69,7 @@ class Bridge:
         """
         try:
             obs = adapter(record)
-        except MalformedRecordError:
+        except _REJECTABLE:
             self._rejected += 1
             return False
         return self._spool.offer(obs)
@@ -68,7 +81,7 @@ class Bridge:
             try:
                 next_seq = self._seq.get(obs.source, 0)
                 self._store.append(obs.to_envelope(source_seq=next_seq))
-            except (ValidationError, ValueError):
+            except _REJECTABLE:
                 self._rejected += 1
                 continue
             self._seq[obs.source] = next_seq + 1
