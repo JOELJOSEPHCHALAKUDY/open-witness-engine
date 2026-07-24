@@ -35,6 +35,16 @@ target-version = "py312"
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "UP"]
 
+[tool.ruff.lint.per-file-ignores]
+# Examples favour readable inline scenario data over strict line length.
+"examples/*" = ["E501"]
+
 [tool.mypy]
 python_version = "3.12"
 strict = true
+
+# ROS 2 packages are only present on a robot; the live bridge imports them behind
+# a guarded import, so treat them as untyped here rather than failing the gate.
+[[tool.mypy.overrides]]
+module = ["rclpy.*", "rmf_task_msgs.*", "nav2_msgs.*"]
+ignore_missing_imports = true

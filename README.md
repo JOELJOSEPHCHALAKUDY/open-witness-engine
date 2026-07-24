@@ -72,16 +72,19 @@ and tested without a running ROS stack.
 src/open_witness_engine/
   envelope.py       # RobotDecisionEnvelope v1 and its sub-models
   causal.py         # typed causal edges + decision graph traversal
-  store.py          # append-only, idempotent, ordered provenance store
+  store.py          # append-only, idempotent, ordered in-memory store
+  sqlite_store.py   # durable SQLite store, same ProvenanceStore contract
+  references.py     # content-hashed, verifiable snapshot references
   ordering.py       # source_seq / vector clock / idempotency primitives
-  query.py          # why-did-X, version-diff, similar-operator-action queries
+  query.py          # why-did-X, version-diff, similar-decision queries (any store)
   bridge/
     pipeline.py     # Bridge facade: resilient capture() + drain()
-    spool.py        # non-blocking, bounded, fail-open transport
+    spool.py        # non-blocking, bounded, thread-safe, fail-open transport
     capture.py      # normalized DecisionObservation + envelope translation
     errors.py       # MalformedRecordError + safe field extraction
     rmf.py          # Open-RMF task-award -> DecisionObservation mapping
     nav2.py         # Nav2 behavior-tree -> DecisionObservation mapping
+    ros_node.py     # live ROS 2 node (guarded rclpy) + tested extraction
 schemas/
   robot-decision-envelope.v1.json
 ```
@@ -107,13 +110,24 @@ quality bars differ, and OWE must stand on its own.
 
 1. **v0 (done):** tested domain core — envelope, causal graph, store, queries — plus
    the non-blocking bridge foundation (spool, capture/translation, Open-RMF and Nav2
-   adapter mappings) with the ROS I/O left as documented seams.
-2. **v0.1:** wire the adapter seams to live ROS 2 (`rmf_task_msgs`, Nav2 BT log) and
-   run the bridge against Open-RMF / Nav2 in simulation, observation-only.
-3. **v0.2:** persistent store (Postgres) + semantic retrieval over decision records;
-   references and hashes to `rosbag2` / trace snapshots.
+   adapter mappings).
+2. **v0.1 (done):** thread-safe spool; a live ROS 2 node (`bridge/ros_node.py`) that
+   subscribes to Open-RMF task topics and feeds the bridge fail-open. The `rclpy`
+   wiring is code-complete behind a guarded import; its message-field mapping is a
+   documented seam to confirm against your ROS distro before production use.
+3. **v0.2 (in progress):** persistent store shipped — `SqliteProvenanceStore`
+   (same `ProvenanceStore` contract, survives restart; Postgres later behind the same
+   interface); content-hashed snapshot references (`references.py`). Semantic
+   (embedding) retrieval still to come.
 4. **Later (only if a real customer wedge is validated):** fleet aggregation,
    tamper-evident hash-chained audit, SROS2 identity mapping, operator-facing query UI.
+
+Try it now (no ROS needed):
+
+```bash
+pip install -e ".[dev]"
+python examples/warehouse_demo.py
+```
 
 ## Development
 

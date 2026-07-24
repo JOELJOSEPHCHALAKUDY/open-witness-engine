@@ -15,12 +15,12 @@ from __future__ import annotations
 from typing import Any
 
 from .envelope import OutcomeStatus, RobotDecisionEnvelope
-from .store import InMemoryProvenanceStore
+from .store import ProvenanceStore
 
 _SUCCESS = {OutcomeStatus.SUCCEEDED, OutcomeStatus.IN_PROGRESS}
 
 
-def explain_decision(store: InMemoryProvenanceStore, decision_id: str) -> dict[str, Any] | None:
+def explain_decision(store: ProvenanceStore, decision_id: str) -> dict[str, Any] | None:
     """Reconstruct the factual decision tuple for ``decision_id``.
 
     Returns the goal, selected action and reason, the rejected alternatives with
@@ -47,7 +47,7 @@ def explain_decision(store: InMemoryProvenanceStore, decision_id: str) -> dict[s
     }
 
 
-def outcome_rates_by_version(store: InMemoryProvenanceStore) -> dict[str, dict[str, Any]]:
+def outcome_rates_by_version(store: ProvenanceStore) -> dict[str, dict[str, Any]]:
     """Aggregate outcome rates per planner version, to localize a regression.
 
     Answers "which software change increased blocked-path failures": a version
@@ -73,7 +73,7 @@ def outcome_rates_by_version(store: InMemoryProvenanceStore) -> dict[str, dict[s
 
 
 def similar_prior_decisions(
-    store: InMemoryProvenanceStore,
+    store: ProvenanceStore,
     decision_id: str,
     *,
     limit: int = 10,
