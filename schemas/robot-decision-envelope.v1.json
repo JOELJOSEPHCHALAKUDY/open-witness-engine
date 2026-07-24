@@ -1,0 +1,94 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://open-witness-engine/schemas/robot-decision-envelope.v1.json",
+  "title": "RobotDecisionEnvelope",
+  "description": "A single task-level robot decision: what was believed, why an action was chosen, what happened, and any human correction. Observation-only; never a command.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "decision_id",
+    "robot_id",
+    "wall_time",
+    "monotonic_ns",
+    "source_seq",
+    "idempotency_key",
+    "goal",
+    "candidate_actions",
+    "selected_action",
+    "outcome"
+  ],
+  "properties": {
+    "schema_version": { "type": "integer", "const": 1 },
+    "decision_id": { "type": "string", "description": "Stable unique id for this decision record (UUID)." },
+    "robot_id": { "type": "string" },
+    "fleet_id": { "type": "string" },
+    "mission_id": { "type": "string" },
+    "task_id": { "type": "string" },
+    "action_goal_id": { "type": "string", "description": "Reference to the executed action goal (e.g. a Nav2 goal id)." },
+    "wall_time": { "type": "string", "format": "date-time", "description": "ISO-8601 UTC wall-clock time of the decision." },
+    "monotonic_ns": { "type": "integer", "minimum": 0, "description": "Producer-local monotonic clock in nanoseconds; ordering within a source, immune to wall-clock skew." },
+    "source_seq": { "type": "integer", "minimum": 0, "description": "Per-source monotonic sequence number for gap detection and dedup." },
+    "idempotency_key": { "type": "string", "description": "Stable key; a duplicate append with the same key is a no-op." },
+    "goal": { "type": "string", "description": "The active goal this decision serves." },
+    "world_state_ref": {
+      "type": "object",
+      "description": "Reference to external state/recording, not the raw data itself.",
+      "properties": {
+        "map_id": { "type": "string" },
+        "map_version": { "type": "string" },
+        "snapshot_hash": { "type": "string", "description": "Content hash of the referenced world-state snapshot." },
+        "trace_ref": { "type": "string", "description": "Reference into a rosbag2 / ros2_tracing recording." }
+      },
+      "additionalProperties": true
+    },
+    "candidate_actions": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["action"],
+        "properties": {
+          "action": { "type": "string" },
+          "cost": { "type": "number" },
+          "rejected_reasons": { "type": "array", "items": { "type": "string" } }
+        },
+        "additionalProperties": true
+      }
+    },
+    "selected_action": { "type": "string", "description": "Must match one candidate_actions[].action." },
+    "constraints": { "type": "array", "items": { "type": "string" }, "description": "Safety/operational rules in force at decision time." },
+    "decision_reason": { "type": "string", "description": "Short factual reason (e.g. 'lowest feasible route cost'). Not an LLM narration." },
+    "software": {
+      "type": "object",
+      "description": "Versions of the planner/policy/model/build that produced the decision.",
+      "properties": {
+        "planner": { "type": "string" },
+        "planner_version": { "type": "string" },
+        "config_hash": { "type": "string" },
+        "build_commit": { "type": "string" }
+      },
+      "additionalProperties": true
+    },
+    "outcome": {
+      "type": "object",
+      "required": ["status"],
+      "properties": {
+        "status": { "type": "string", "enum": ["succeeded", "failed", "recovery_required", "aborted", "in_progress"] },
+        "error": { "type": "string" },
+        "recovery": { "type": "string" }
+      },
+      "additionalProperties": true
+    },
+    "human_override": {
+      "type": ["object", "null"],
+      "description": "If a human corrected or overrode the decision, what they did and why.",
+      "properties": {
+        "operator_id": { "type": "string" },
+        "action": { "type": "string" },
+        "reason": { "type": "string" }
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": false
+}
