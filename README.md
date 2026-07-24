@@ -100,7 +100,7 @@ back-pressured onto the robot.
 
 ## Relationship to Open Timeline Engine
 
-OWE reuses proven *design patterns* from [Open Timeline Engine](../open-timeline-engine)
+OWE reuses proven *design patterns* from [Open Timeline Engine](https://github.com/JOELJOSEPHCHALAKUDY/open-timeline-engine)
 — its event-ordering and idempotency primitives, its episodic→semantic and
 corrections/supersession model, and its Lite/Full topology — reimplemented cleanly
 here. It takes **no code dependency** on that project: the domains, data rates, and
