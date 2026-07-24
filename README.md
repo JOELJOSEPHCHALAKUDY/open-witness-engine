@@ -110,7 +110,21 @@ quality bars differ, and OWE must stand on its own.
 python -m venv .venv && . .venv/bin/activate
 pip install -e ".[dev]"
 pytest
+ruff check .
+mypy src tests
 ```
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for standards and the non-negotiable safety
+invariants.
+
+## Project docs
+
+- [docs/boundaries.md](docs/boundaries.md) — the safety boundaries and their rationale
+- [CHANGELOG.md](CHANGELOG.md) — what has shipped
+- [MILESTONES.md](MILESTONES.md) — roadmap
+- [SECURITY.md](SECURITY.md) — reporting, including safety-boundary violations
+- [docs/plans/](docs/plans) — the original approved design
+- [AGENTS.md](AGENTS.md) / [CLAUDE.md](CLAUDE.md) — guidance for coding agents
 
 ## License
 

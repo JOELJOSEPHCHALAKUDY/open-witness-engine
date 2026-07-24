@@ -1,7 +1,10 @@
 # Open Witness Engine — v0 design
 
 Date: 2026-07-24
-Status: approved (tested domain core)
+Status: implemented. The domain core shipped as designed; the capture bridge
+foundation and malformed-record resilience (originally v0.1) were also built. See
+[CHANGELOG.md](../../CHANGELOG.md) and [MILESTONES.md](../../MILESTONES.md) for
+current status; this document is the original approved design.
 
 ## Purpose
 
