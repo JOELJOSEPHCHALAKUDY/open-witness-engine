@@ -10,6 +10,7 @@ implement the same interface without changing any caller.
 from __future__ import annotations
 
 import sqlite3
+import threading
 from collections.abc import Iterator
 from pathlib import Path
 
@@ -41,46 +42,60 @@ class SqliteProvenanceStore:
     """Durable append-only provenance store."""
 
     def __init__(self, path: str | Path) -> None:
-        self._conn = sqlite3.connect(str(path))
+        # A ROS deployment opens the store on one thread and drains on another
+        # (the node's timer), so the connection must outlive its creating thread.
+        # sqlite3 hands back no cross-thread safety of its own once that guard is
+        # off, so every statement below runs under ``_lock``. It is reentrant
+        # because some reads compose others (``current_version`` -> ``edges_from``).
+        self._conn = sqlite3.connect(str(path), check_same_thread=False)
         self._conn.row_factory = sqlite3.Row
-        self._conn.executescript(_SCHEMA)
-        self._conn.commit()
+        self._lock = threading.RLock()
+        with self._lock:
+            # WAL lets a reader run while a writer commits, which is the usual
+            # shape here: a drain thread appending while a query thread reads.
+            self._conn.execute("PRAGMA journal_mode=WAL")
+            self._conn.executescript(_SCHEMA)
+            self._conn.commit()
 
     def close(self) -> None:
-        self._conn.close()
+        with self._lock:
+            self._conn.close()
 
     # --- writes ---
 
     def append(self, envelope: RobotDecisionEnvelope) -> None:
         key = envelope.idempotency_key
-        existing = self._conn.execute(
-            "SELECT decision_id FROM decisions WHERE idempotency_key = ?", (key,)
-        ).fetchone()
-        if existing is not None:
-            if existing["decision_id"] != envelope.decision_id:
-                raise DuplicateDecisionError(
-                    f"idempotency_key {key!r} already used for decision {existing['decision_id']!r}"
-                )
-            return  # idempotent replay
-        self._conn.execute(
-            "INSERT INTO decisions(decision_id, idempotency_key, source_id, source_seq, payload) "
-            "VALUES(?, ?, ?, ?, ?)",
-            (
-                envelope.decision_id,
-                key,
-                envelope.source_id,
-                envelope.source_seq,
-                envelope.model_dump_json(),
-            ),
-        )
-        self._conn.commit()
+        with self._lock:
+            existing = self._conn.execute(
+                "SELECT decision_id FROM decisions WHERE idempotency_key = ?", (key,)
+            ).fetchone()
+            if existing is not None:
+                if existing["decision_id"] != envelope.decision_id:
+                    raise DuplicateDecisionError(
+                        f"idempotency_key {key!r} already used for "
+                        f"decision {existing['decision_id']!r}"
+                    )
+                return  # idempotent replay
+            self._conn.execute(
+                "INSERT INTO decisions(decision_id, idempotency_key, source_id, source_seq, "
+                "payload) VALUES(?, ?, ?, ?, ?)",
+                (
+                    envelope.decision_id,
+                    key,
+                    envelope.source_id,
+                    envelope.source_seq,
+                    envelope.model_dump_json(),
+                ),
+            )
+            self._conn.commit()
 
     def link(self, src: str, edge_type: CausalEdgeType, dst: str) -> CausalEdge:
-        self._conn.execute(
-            "INSERT OR IGNORE INTO edges(src, type, dst) VALUES(?, ?, ?)",
-            (src, edge_type.value, dst),
-        )
-        self._conn.commit()
+        with self._lock:
+            self._conn.execute(
+                "INSERT OR IGNORE INTO edges(src, type, dst) VALUES(?, ?, ?)",
+                (src, edge_type.value, dst),
+            )
+            self._conn.commit()
         return CausalEdge(src=src, type=edge_type, dst=dst)
 
     def supersede(self, *, old: str, new: str) -> CausalEdge:
@@ -89,47 +104,55 @@ class SqliteProvenanceStore:
     # --- reads ---
 
     def get(self, decision_id: str) -> RobotDecisionEnvelope | None:
-        row = self._conn.execute(
-            "SELECT payload FROM decisions WHERE decision_id = ?", (decision_id,)
-        ).fetchone()
+        with self._lock:
+            row = self._conn.execute(
+                "SELECT payload FROM decisions WHERE decision_id = ?", (decision_id,)
+            ).fetchone()
         if row is None:
             return None
         return RobotDecisionEnvelope.model_validate_json(row["payload"])
 
     def all(self) -> Iterator[RobotDecisionEnvelope]:
-        for row in self._conn.execute("SELECT payload FROM decisions ORDER BY seq"):
-            yield RobotDecisionEnvelope.model_validate_json(row["payload"])
+        # Rows are materialised under the lock rather than streamed from a live
+        # cursor: a lazy generator would hold the connection across the caller's
+        # own work, and a concurrent writer could invalidate the cursor midway.
+        with self._lock:
+            rows = self._conn.execute("SELECT payload FROM decisions ORDER BY seq").fetchall()
+        return iter([RobotDecisionEnvelope.model_validate_json(r["payload"]) for r in rows])
 
     def by_source(self, source_id: str) -> list[RobotDecisionEnvelope]:
-        rows = self._conn.execute(
-            "SELECT payload FROM decisions WHERE source_id = ? ORDER BY source_seq",
-            (source_id,),
-        ).fetchall()
+        with self._lock:
+            rows = self._conn.execute(
+                "SELECT payload FROM decisions WHERE source_id = ? ORDER BY source_seq",
+                (source_id,),
+            ).fetchall()
         return [RobotDecisionEnvelope.model_validate_json(r["payload"]) for r in rows]
 
     def missing_sequence(self, source_id: str) -> list[int]:
-        seqs = [
-            int(r["source_seq"])
-            for r in self._conn.execute(
-                "SELECT source_seq FROM decisions WHERE source_id = ? ORDER BY source_seq",
-                (source_id,),
-            )
-        ]
+        with self._lock:
+            seqs = [
+                int(r["source_seq"])
+                for r in self._conn.execute(
+                    "SELECT source_seq FROM decisions WHERE source_id = ? ORDER BY source_seq",
+                    (source_id,),
+                ).fetchall()
+            ]
         if not seqs:
             return []
         present = set(seqs)
         return [s for s in range(seqs[0], seqs[-1]) if s not in present]
 
     def edges_from(self, src: str, edge_type: CausalEdgeType | None = None) -> list[CausalEdge]:
-        if edge_type is None:
-            rows = self._conn.execute(
-                "SELECT src, type, dst FROM edges WHERE src = ? ORDER BY rowid", (src,)
-            ).fetchall()
-        else:
-            rows = self._conn.execute(
-                "SELECT src, type, dst FROM edges WHERE src = ? AND type = ? ORDER BY rowid",
-                (src, edge_type.value),
-            ).fetchall()
+        with self._lock:
+            if edge_type is None:
+                rows = self._conn.execute(
+                    "SELECT src, type, dst FROM edges WHERE src = ? ORDER BY rowid", (src,)
+                ).fetchall()
+            else:
+                rows = self._conn.execute(
+                    "SELECT src, type, dst FROM edges WHERE src = ? AND type = ? ORDER BY rowid",
+                    (src, edge_type.value),
+                ).fetchall()
         return [
             CausalEdge(src=r["src"], type=CausalEdgeType(r["type"]), dst=r["dst"]) for r in rows
         ]
@@ -147,7 +170,9 @@ class SqliteProvenanceStore:
 
     def graph_snapshot(self) -> DecisionGraph:
         """Rebuild an in-memory DecisionGraph from the persisted edges (for traversal)."""
+        with self._lock:
+            rows = self._conn.execute("SELECT src, type, dst FROM edges ORDER BY rowid").fetchall()
         g = DecisionGraph()
-        for r in self._conn.execute("SELECT src, type, dst FROM edges ORDER BY rowid"):
+        for r in rows:
             g.link(r["src"], CausalEdgeType(r["type"]), r["dst"])
         return g

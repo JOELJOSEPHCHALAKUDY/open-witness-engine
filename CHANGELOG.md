@@ -2,6 +2,31 @@
 
 ## Unreleased
 
+- **The durable store is now usable on a robot (found by an evaluation pass).** Three
+  defects sat in the seam between components that the unit suites each passed
+  individually:
+  - `SqliteProvenanceStore` was bound to its creating thread (`sqlite3` defaults to
+    `check_same_thread=True`), so the moment a ROS drain timer touched it — the
+    deployment shape the thread-safe spool exists for — it raised `ProgrammingError`.
+    The connection now allows cross-thread use, every statement runs under a reentrant
+    lock, and the journal is WAL so a reader and the drain writer do not block.
+  - **Storage faults escaped the fail-open boundary.** `_REJECTABLE` listed only
+    record-level errors, so a dead or full database raised straight out of `drain()`
+    into the caller — breaking invariant 3 exactly when it matters. Storage failures
+    are now absorbed and counted separately as `DrainReport.storage_failures` /
+    `Bridge.storage_failures`, kept apart from `rejected` because they mean opposite
+    things: rejected says fix the adapter, storage_failures says the disk is dying.
+  - **`capture()` only absorbed an enumerated exception list**, so an adapter raising
+    anything unlisted (e.g. `KeyError` from a bid missing its `robot` field) crashed
+    the callback. Adapters are the extension point and third-party ones will raise
+    unforeseen types, so the catch is now total below `BaseException`.
+- **`Bridge` accepts any `ProvenanceStore`**, not the concrete `InMemoryProvenanceStore`.
+  The protocol already existed; the pipeline just did not use it, which made the
+  advertised "swap in a durable backend" fail `mypy --strict` for anyone who tried it.
+- Regression coverage in `tests/test_durable_composition.py` — the store and the bridge
+  exercised *together*, across threads and under storage failure, which is the only
+  configuration a fleet actually runs.
+
 - **Fail-open hardening (found by a 5,000-sample stress eval):** `Bridge.capture`
   and `drain` now absorb the full set of malformed-record failures — not just
   `MalformedRecordError` but also `ValidationError`, `ValueError`, `TypeError`, and
